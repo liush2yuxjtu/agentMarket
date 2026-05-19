@@ -10,7 +10,10 @@ description: >-
   artifact: campaign recaps, monthly/QBR performance updates, "report to the
   boss / 给老板汇报", investor or board marketing slides-as-page, a press-facing
   brief, a customer-facing results page, a launch retro, or any "summarize what
-  marketing did and tell <persona> about it". Triggers include /talk-markets,
+  marketing did and tell <persona> about it". By DEFAULT it first runs the
+  `marketing:start` pipeline (/start) to autonomously gather a real, current
+  evidence base, then frames that evidence for the chosen reader — opt out only
+  when real evidence already exists or the user says skip. Triggers include /talk-markets,
   talk-markets, 营销汇报, 给老板/PM/客户/投资人汇报, marketing report, campaign
   recap, stakeholder update, QBR/board marketing page, press brief, customer
   results page. Reach for this even when the user only says "report this to my
@@ -71,12 +74,16 @@ shape, design the real page fresh.
 - The user says "report this to X", "make a page for the client / board",
   "给老板汇报", "营销月报", "season recap for the team".
 
-If the job is to *produce* the marketing artifact itself (write the campaign
-plan, run the SEO audit, draft the email sequence), use the `marketing` plugin
-skills — `campaign-plan`, `performance-report`, `seo-audit`,
-`competitive-brief`, `brand-review`, `email-sequence`, `draft-content`. Those
-generate the work; `talk-markets` reports it to a human. They are upstream of
-this skill: their outputs are this skill's source evidence (§3).
+**Default behaviour: this skill does not skip the marketing bag — it runs it.**
+Before source-grounding, talk-markets by default invokes `marketing:start`
+(the marketing plugin's one-shot full pipeline) to autonomously gather real,
+current data on the reporting target and run every stage end-to-end; that
+output is then framed for the chosen reader (step 2.5). The individual
+`marketing` skills — `campaign-plan`, `performance-report`, `seo-audit`,
+`competitive-brief`, `brand-review`, `email-sequence`, `draft-content` — remain
+this skill's upstream evidence sources (§3); `marketing:start` is just the
+default way to produce that evidence in one pass. Opt out (skip the run, report
+existing evidence) when the user already has real data or says skip — see §2.5.
 
 ## Workflow
 
@@ -132,16 +139,43 @@ Compact persona map (full matrix + per-persona pitfalls in
 | 投资人 / 董事会 | 市场、护城河、可重复增长引擎 | 增长引擎与单位经济 + 可重复性 | 单次活动八卦 | 战略、数字诚实、有节奏 |
 | 合作伙伴 / 渠道 | 共赢、各自动作、节奏 | 共同收益 + 双方接下来要做的事 | 内部预算、内部反思 | 互惠、清晰分工 |
 
+### 2.5 Run `marketing:start` (default — build the real evidence base)
+
+**By default, invoke `marketing:start` now**, before source-grounding. It is
+the marketing plugin's one-shot full pipeline: given the step-1 target (a
+campaign, site, repo, or org) it autonomously gathers real, current data and
+runs every stage end-to-end — competitive brief, battlecard, gap messaging,
+per-target deep-dives, monitoring — emitting a self-contained talk-html hub +
+one HTML per stage + cited raw artifacts in `$CLAUDE_JOB_DIR`. That output is
+the **primary real evidence** feeding §3 and §4, not a side deliverable.
+
+*Why default:* talk-markets reports marketing outcomes; without freshly
+gathered, sourced data it can only re-skin whatever was lying around — exactly
+how a stakeholder page ends up thin or padded. Gathering first *is* the honesty
+bar in practice. Hand `marketing:start` the step-1 target; the step-2 audience
+decision is unchanged — it frames this evidence, never whether it is gathered.
+
+*Opt out* (skip 2.5 → §3's two honest moves; state the evidence path in one
+line) when **any** holds: the user already supplied/pointed at real evidence (a
+prior `marketing` run, exports, dashboards, pasted numbers); the user says
+"just report this / skip /start / 别跑 start / 用现有数据"; or the subject is
+non-campaign work that already carries sourced artifacts (e.g. a repo's
+`judge.json`, a recorded proof run).
+
 ### 3. Source-ground in REAL marketing evidence (honesty is load-bearing)
 
 Inherit talk-html §3.0/§3.1 verbatim, with one marketing-specific sharpening:
 **numbers in a stakeholder report are claims about the business — never invent
 them.** Before writing, find the real source:
 
-- Outputs of the `marketing` plugin skills run in this conversation/repo
-  (`performance-report`, `campaign-plan`, `seo-audit`, `competitive-brief`,
-  `brand-review`, `email-sequence`), real analytics exports, CSVs, dashboards,
-  screenshots, or files the user pasted/referenced.
+- **Default primary evidence:** the `marketing:start` hub, per-stage HTML, and
+  cited raw artifacts written to `$CLAUDE_JOB_DIR` by step 2.5. Unless you
+  opted out of 2.5, this is the evidence the page is built on — treat its cited
+  sources as the report's sources.
+- Other / opt-out sources: outputs of individual `marketing` plugin skills run
+  in this conversation/repo (`performance-report`, `campaign-plan`, `seo-audit`,
+  `competitive-brief`, `brand-review`, `email-sequence`), real analytics
+  exports, CSVs, dashboards, screenshots, or files the user pasted/referenced.
 - If a dashboard/board is part of the story and it is **non-static** (it
   *runs*, it has live state), talk-html §3.1 applies: record a real run with
   `record-to-gif.sh` and embed the GIF — do not draw a fake chart.
@@ -263,6 +297,7 @@ bar, the §3.2 audience discipline). On top of that, talk-markets adds:
 
 | Failure | Recovery |
 |---|---|
+| `marketing:start` fails / unavailable / target unfetchable | Fall back to §3's two honest moves — build on whatever real evidence exists, or state on the page (zh-CN) that the metric is unavailable. A failed pipeline never licenses a fabricated number; say the evidence run failed instead. |
 | No real numbers available | Run the right `marketing` skill to produce them, or state on the page (zh-CN) that the metric is unavailable and show what exists. Never fabricate. |
 | Unsure which persona | Ask the user once: "report to whom?" — the persona changes the whole first screen. If truly unanswered, default to 直属上级/VP (the most common marketing reporting line) and say so on the page. |
 | Dashboard is live/non-static | talk-html §3.1: `record-to-gif.sh` a real run, embed the GIF. Do not draw a fake chart. |
