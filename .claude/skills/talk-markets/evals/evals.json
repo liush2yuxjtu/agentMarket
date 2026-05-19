@@ -1,0 +1,44 @@
+{
+  "skill_name": "talk-markets",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我们刚跑完 Q2 付费投放，附上 performance-report 导出的数据。帮我给 CEO 做一页营销汇报，她周五要在董事会上讲。",
+      "expected_output": "A self-contained zh-CN HTML report tuned for a CEO: one repeatable headline sentence + money-direction KPIs (ROAS/CAC/attributed revenue) on the first screen, channel-ops detail sunk into <details>, an explicit recommendation/ask, real numbers traceable to the provided fixture, audit pill + 继续修改 bar, marketing-report meta.",
+      "files": ["evals/fixtures/q2-paid-performance.md"],
+      "expectations": [
+        "Output is a single self-contained .html file with <html lang=\"zh-CN\"> and inline CSS (no external JS beyond the sanctioned clipboard handlers)",
+        "First screen leads with a one-sentence conclusion a CEO could repeat to a board, plus money-direction KPIs (ROAS / CAC / attributed revenue), not channel-ops minutiae",
+        "Every headline number is traceable to the provided fixture (ROAS 1.80, CAC ¥210, attributed revenue ¥2.23M) and NOT invented",
+        "The page contains an explicit recommendation or ask (e.g. shift budget away from信息流 / scale搜索), not just a status dump",
+        "Channel-ops detail and method/caveats are present but collapsed into <details> / a 诚实边界 section, not on the first screen",
+        "Includes the talk-html audit pill and 继续修改 bar, and the meta comment sets template marketing-report"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "把这次新版本发布的营销结果做成一页，既要发给客户看（让他们放心继续用），也要给董事会看（证明增长可重复）。同一批数据。",
+      "expected_output": "One HTML page serving two real audiences over the SAME evidence: customer track (value-to-them + independently verifiable proof + next step, no internal metrics/paths) and board track (repeatable growth engine + unit economics), implemented as JS-free CSS audience tabs/anchors, shared evidence + shared 诚实边界.",
+      "files": [],
+      "expectations": [
+        "The page implements two distinct audience tracks (customer vs board/investor) over the same evidence base, not one averaged page",
+        "Audience switching is achieved without JavaScript (CSS :checked/:target tabs or in-page anchors), consistent with the JS-free constraint",
+        "The customer track omits internal metrics/paths/tooling and frames value + verifiable proof + a next step for the customer",
+        "The board track frames a repeatable growth engine / unit economics rather than one-off campaign trivia",
+        "Shared evidence and a single collapsed 诚实边界/数据来源 section are reused across both tracks, not duplicated or contradictory"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "给老板汇报一下这个月市场都做了啥。",
+      "expected_output": "The skill triggers on a bare 给老板汇报 request with NO data supplied; it does not fabricate KPIs — it either drives the user to produce real numbers (e.g. run performance-report) or states plainly on the page (zh-CN) which metrics are unavailable and reports only what is real, while still shaping the page for the 老板/上级 persona.",
+      "files": [],
+      "expectations": [
+        "The talk-markets skill is invoked/recognized from the bare phrase 给老板汇报 without an explicit /talk-markets command",
+        "No fabricated or 'representative' KPI numbers appear; the response either requests/produces real data or explicitly states (in Chinese) that metrics are unavailable",
+        "The page (or response) is still shaped for the boss/上级 persona: conclusion-first, decision/resource framing, ops detail sunk",
+        "Honesty about missing data is surfaced rather than hidden behind invented figures"
+      ]
+    }
+  ]
+}
