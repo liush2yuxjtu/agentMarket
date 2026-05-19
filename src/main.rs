@@ -1,9 +1,8 @@
-//! agentMarket — a terminal marketing dashboard.
+//! agentMarket — 终端营销仪表盘。
 //!
-//! Surfaces the capability areas of the knowledge-work `marketing` plugin
-//! (campaigns, content, SEO, performance, brand, competitors, email) as a
-//! navigable TUI. Data shown here is illustrative; each panel names the
-//! plugin skill that powers the real workflow.
+//! 把 knowledge-work `marketing` 插件的能力领域（营销活动、内容创作、SEO、
+//! 效果分析、品牌审查、竞品分析、邮件序列）呈现为可导航的 TUI。此处展示的
+//! 数据仅作示意；每个面板都标注了支撑真实工作流的插件 skill。
 
 use std::time::Duration;
 
@@ -17,74 +16,77 @@ use ratatui::{
     },
     Frame,
 };
+use unicode_width::UnicodeWidthStr;
 
 const PLUGIN: &str = "marketing@knowledge-work-plugins v1.2.0";
 const ACCENT: Color = Color::Rgb(255, 122, 0);
 
-/// One capability area of the marketing plugin.
+/// 营销插件的一个能力领域。
 struct Section {
     name: &'static str,
     skill: &'static str,
     status: &'static str,
     detail: &'static str,
+    /// 是否在面板中渲染走势图（互动度迷你图）。
+    chart: bool,
 }
 
 const SECTIONS: &[Section] = &[
     Section {
-        name: "Campaigns",
+        name: "营销活动",
         skill: "campaign-plan",
-        status: "3 active",
-        detail: "Plan multi-channel campaigns end to end: objectives, audience, \
-                 channel mix, timeline, and budget. Turns a brief into a structured \
-                 plan with measurable goals and a launch checklist.",
+        status: "3 个进行中",
+        detail: "端到端规划多渠道营销活动：目标、受众、渠道组合、时间线与预算。\
+                 把一份简报转化为带可衡量目标和上线清单的结构化方案。",
+        chart: false,
     },
     Section {
-        name: "Content",
+        name: "内容创作",
         skill: "draft-content / content-creation",
-        status: "7 drafts",
-        detail: "Draft blog posts, social, email, landing pages, and press \
-                 releases with channel-specific formatting. Generates headline \
-                 and subject-line options and adapts tone to the target audience.",
+        status: "7 篇草稿",
+        detail: "撰写博客、社媒、邮件、落地页与新闻稿，并按渠道适配排版。生成\
+                 多个标题与邮件主题选项，并按目标受众调整语气。",
+        chart: false,
     },
     Section {
-        name: "SEO",
+        name: "SEO 优化",
         skill: "seo-audit",
-        status: "2 audits queued",
-        detail: "Audit a site or page for on-page SEO: titles, meta, headings, \
-                 internal linking, and content gaps. Produces a prioritized list \
-                 of fixes ranked by impact and effort.",
+        status: "2 个待审计",
+        detail: "审计站点或页面的页面内 SEO：标题、meta、标题层级、内链与内容\
+                 缺口。产出一份按影响和投入排序的优先修复清单。",
+        chart: false,
     },
     Section {
-        name: "Performance",
+        name: "效果分析",
         skill: "performance-report",
-        status: "+12% WoW",
-        detail: "Pull channel performance into one report: reach, engagement, \
-                 conversion, and spend efficiency. Highlights what is working \
-                 and where to reallocate.",
+        status: "周环比 +12%",
+        detail: "把各渠道表现汇总成一份报告：触达、互动、转化与花费效率。指出\
+                 哪些有效，以及该把预算重新分配到哪里。",
+        chart: true,
     },
     Section {
-        name: "Brand",
+        name: "品牌审查",
         skill: "brand-review",
-        status: "voice 8.4/10",
-        detail: "Review any asset against brand voice and guidelines. Flags \
-                 off-tone phrasing and inconsistent terminology, then rewrites \
-                 to match the approved voice.",
+        status: "语调 8.4/10",
+        detail: "对照品牌语调与规范审查任意素材。标出跑调的措辞和不一致的术语，\
+                 再改写为符合既定语调的版本。",
+        chart: false,
     },
     Section {
-        name: "Competitors",
+        name: "竞品分析",
         skill: "competitive-brief",
-        status: "5 tracked",
-        detail: "Build a competitive brief: positioning, messaging deltas, and \
-                 the gaps you do not cover yet. Diff-focused — what changed and \
-                 what to do about it.",
+        status: "5 个跟踪中",
+        detail: "构建竞品简报：定位、信息差异，以及你尚未覆盖的缺口。以 diff 为\
+                 核心——什么变了，以及该怎么应对。",
+        chart: false,
     },
     Section {
-        name: "Email",
+        name: "邮件序列",
         skill: "email-sequence",
-        status: "2 sequences live",
-        detail: "Design lifecycle email sequences: onboarding, nurture, \
-                 re-engagement. Maps triggers to messages with timing and \
-                 a clear call to action per step.",
+        status: "2 条序列运行中",
+        detail: "设计生命周期邮件序列：新用户引导、培育、再激活。把触发条件映射\
+                 到每一封邮件，含时机与每步明确的行动号召。",
+        chart: false,
     },
 ];
 
@@ -115,7 +117,7 @@ impl App {
         self.list.select(Some(next as usize));
     }
 
-    /// Demo-only: nudge the performance series so `r` feels alive.
+    /// 仅用于演示：轻推效果数据序列，让 `r` 刷新有反馈感。
     fn refresh(&mut self) {
         if let Some(&last) = self.perf.last() {
             let next = (last as i64 + ((self.selected() as i64 * 7 + 3) % 9) - 3).clamp(1, 20);
@@ -157,6 +159,16 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
+/// 按终端显示列宽在右侧补空格（CJK 字符占 2 列），保证导航列对齐。
+fn pad_display(s: &str, width: usize) -> String {
+    let w = UnicodeWidthStr::width(s);
+    if w >= width {
+        s.to_string()
+    } else {
+        format!("{}{}", s, " ".repeat(width - w))
+    }
+}
+
 fn ui(f: &mut Frame, app: &mut App) {
     let [header, body, footer] = Layout::vertical([
         Constraint::Length(3),
@@ -168,7 +180,7 @@ fn ui(f: &mut Frame, app: &mut App) {
     render_header(f, header);
 
     let [nav, panel] =
-        Layout::horizontal([Constraint::Length(26), Constraint::Min(0)]).areas(body);
+        Layout::horizontal([Constraint::Length(28), Constraint::Min(0)]).areas(body);
     render_nav(f, nav, app);
     render_panel(f, panel, app);
 
@@ -178,7 +190,7 @@ fn ui(f: &mut Frame, app: &mut App) {
 fn render_header(f: &mut Frame, area: Rect) {
     let title = Line::from(vec![
         Span::styled(" agentMarket ", Style::new().fg(Color::Black).bg(ACCENT).bold()),
-        Span::raw("  Marketing Dashboard"),
+        Span::raw("  营销仪表盘"),
     ]);
     let block = Block::default()
         .borders(Borders::ALL)
@@ -191,7 +203,7 @@ fn render_nav(f: &mut Frame, area: Rect, app: &mut App) {
         .iter()
         .map(|s| {
             ListItem::new(Line::from(vec![
-                Span::raw(format!("{:<13}", s.name)),
+                Span::raw(pad_display(s.name, 12)),
                 Span::styled(s.status, Style::new().fg(Color::DarkGray)),
             ]))
         })
@@ -200,7 +212,7 @@ fn render_nav(f: &mut Frame, area: Rect, app: &mut App) {
     let list = List::new(items)
         .block(
             Block::default()
-                .title(" Channels ")
+                .title(" 频道 ")
                 .borders(Borders::ALL)
                 .padding(Padding::horizontal(1)),
         )
@@ -212,11 +224,10 @@ fn render_nav(f: &mut Frame, area: Rect, app: &mut App) {
 
 fn render_panel(f: &mut Frame, area: Rect, app: &App) {
     let s = &SECTIONS[app.selected()];
-    let is_perf = s.name == "Performance";
 
     let [head, spark_area, detail] = Layout::vertical([
         Constraint::Length(5),
-        Constraint::Length(if is_perf { 9 } else { 0 }),
+        Constraint::Length(if s.chart { 9 } else { 0 }),
         Constraint::Min(0),
     ])
     .areas(area);
@@ -227,11 +238,11 @@ fn render_panel(f: &mut Frame, area: Rect, app: &App) {
             Style::new().fg(ACCENT).add_modifier(Modifier::BOLD),
         )),
         Line::from(vec![
-            Span::styled("skill  ", Style::new().fg(Color::DarkGray)),
+            Span::styled("技能  ", Style::new().fg(Color::DarkGray)),
             Span::raw(s.skill),
         ]),
         Line::from(vec![
-            Span::styled("status ", Style::new().fg(Color::DarkGray)),
+            Span::styled("状态  ", Style::new().fg(Color::DarkGray)),
             Span::styled(s.status, Style::new().fg(Color::Green)),
         ]),
     ];
@@ -244,11 +255,11 @@ fn render_panel(f: &mut Frame, area: Rect, app: &App) {
         head,
     );
 
-    if is_perf {
+    if s.chart {
         let spark = Sparkline::default()
             .block(
                 Block::default()
-                    .title(" Engagement (14w) ")
+                    .title(" 互动度 · 近 14 周 ")
                     .borders(Borders::ALL),
             )
             .data(app.perf.iter().copied())
@@ -260,7 +271,7 @@ fn render_panel(f: &mut Frame, area: Rect, app: &App) {
         .wrap(Wrap { trim: true })
         .block(
             Block::default()
-                .title(" What this does ")
+                .title(" 功能说明 ")
                 .borders(Borders::ALL)
                 .padding(Padding::new(1, 1, 1, 1)),
         );
@@ -268,7 +279,7 @@ fn render_panel(f: &mut Frame, area: Rect, app: &App) {
 }
 
 fn render_footer(f: &mut Frame, area: Rect) {
-    let keys = "↑↓/jk move  ·  tab cycle  ·  r refresh  ·  q quit";
+    let keys = "↑↓/jk 切换  ·  tab 循环  ·  r 刷新  ·  q 退出";
     let line = Line::from(vec![
         Span::styled(format!(" {keys} "), Style::new().fg(Color::DarkGray)),
         Span::raw("   "),
@@ -285,25 +296,43 @@ mod tests {
     use super::*;
     use ratatui::{backend::TestBackend, Terminal};
 
+    /// Scrape the rendered buffer back to text. ratatui stores a wide (CJK)
+    /// grapheme in one cell and fills the next cell with a literal space, so a
+    /// naive symbol join splits multi-byte text. Skip the filler cell after any
+    /// width-2 grapheme to reconstruct what the user actually sees.
     fn screen(app: &mut App, w: u16, h: u16) -> String {
         let mut t = Terminal::new(TestBackend::new(w, h)).unwrap();
         t.draw(|f| ui(f, app)).unwrap();
-        t.backend()
+        let cells: Vec<String> = t
+            .backend()
             .buffer()
             .content
             .iter()
-            .map(|c| c.symbol())
-            .collect()
+            .map(|c| c.symbol().to_string())
+            .collect();
+        let mut out = String::new();
+        let mut skip = false;
+        for sym in &cells {
+            if skip {
+                skip = false;
+                continue;
+            }
+            out.push_str(sym);
+            if UnicodeWidthStr::width(sym.as_str()) == 2 {
+                skip = true;
+            }
+        }
+        out
     }
 
     #[test]
     fn renders_header_and_footer() {
         let mut app = App::new();
         let s = screen(&mut app, 100, 30);
-        assert!(s.contains("agentMarket"), "header missing");
-        assert!(s.contains("Marketing Dashboard"), "title missing");
-        assert!(s.contains(PLUGIN), "plugin status missing");
-        assert!(s.contains("Campaigns"), "nav missing");
+        assert!(s.contains("agentMarket"), "缺少头部品牌");
+        assert!(s.contains("营销仪表盘"), "缺少标题");
+        assert!(s.contains(PLUGIN), "缺少插件状态行");
+        assert!(s.contains("营销活动"), "缺少导航项");
     }
 
     #[test]
@@ -311,18 +340,18 @@ mod tests {
         let mut app = App::new();
         assert_eq!(app.selected(), 0);
         app.step(-1);
-        assert_eq!(app.selected(), SECTIONS.len() - 1, "up from 0 wraps to last");
+        assert_eq!(app.selected(), SECTIONS.len() - 1, "从 0 向上应绕回最后一项");
         app.step(1);
-        assert_eq!(app.selected(), 0, "down from last wraps to 0");
+        assert_eq!(app.selected(), 0, "从最后一项向下应绕回 0");
     }
 
     #[test]
     fn performance_section_renders_sparkline() {
         let mut app = App::new();
-        let perf = SECTIONS.iter().position(|s| s.name == "Performance").unwrap();
+        let perf = SECTIONS.iter().position(|s| s.chart).unwrap();
         app.list.select(Some(perf));
         let s = screen(&mut app, 100, 30);
-        assert!(s.contains("Engagement"), "sparkline block missing");
+        assert!(s.contains("互动度"), "缺少走势图区块");
     }
 
     #[test]
@@ -337,6 +366,13 @@ mod tests {
         let mut app = App::new();
         let n = app.perf.len();
         app.refresh();
-        assert_eq!(app.perf.len(), n, "refresh must not change series length");
+        assert_eq!(app.perf.len(), n, "刷新不得改变序列长度");
+    }
+
+    #[test]
+    fn nav_names_pad_to_display_width() {
+        // CJK 名称按显示列宽补齐，ASCII 名称同理对齐。
+        assert_eq!(pad_display("营销活动", 12), "营销活动    ");
+        assert_eq!(pad_display("SEO 优化", 12), "SEO 优化    ");
     }
 }
